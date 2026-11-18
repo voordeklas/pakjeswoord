@@ -76,13 +76,25 @@
   .kaart .knop{ color:var(--rood); border-color:var(--rood); margin-top:12px }
   .kaart .knop.vol{ background:var(--rood); color:#fff }
   .klein{ font-size:15px !important; opacity:.8 }
+  .niveaus{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:14px 0 }
+  .niveau{ font:inherit; border:3px solid var(--rood); background:#fff; border-radius:18px; padding:14px 10px; cursor:pointer;
+           color:var(--donkerrood); transition:transform .1s }
+  .niveau:hover{ transform:translateY(-3px); background:#fff1d6 }
+  .niveau .emoji{ font-size:42px; display:block }
+  .niveau b{ display:block; font-size:21px; margin:4px 0 }
+  .niveau small{ display:block; font-size:14px; opacity:.85; line-height:1.3 }
+  .niveau .sterren{ color:var(--goud); font-size:20px; text-shadow:0 1px 0 #7a0a14 }
+  .scheiding{ display:flex; align-items:center; gap:10px; margin:14px 0 8px; font-size:15px; opacity:.7 }
+  .scheiding:before,.scheiding:after{ content:""; flex:1; border-top:2px dashed #c9a27e }
+  .eigenrij{ display:flex; gap:8px } .eigenrij input{ flex:1 } .eigenrij .knop{ margin-top:0; white-space:nowrap }
+  @media (max-width:600px){ .niveaus{ grid-template-columns:1fr } .eigenrij{ flex-direction:column } }
   #confetti{ position:fixed; inset:0; pointer-events:none; z-index:20 }
 </style>
 </head>
 <body>
 <header>
   <h1>🎁 Pakjeswoord raden 🎁</h1>
-  <div class="sub">Raad het woord vóórdat er 10 pakjes liggen! · <span id="ronde">Ronde 1</span></div>
+  <div class="sub">Raad het woord vóórdat er 10 pakjes liggen! · <span id="niveaulabel"></span><span id="ronde">Ronde 1</span></div>
 </header>
 
 <main>
@@ -103,20 +115,33 @@
   <div class="knoppen">
     <button class="knop" id="hintknop">💡 Hint</button>
     <button class="knop" id="oplossenknop">Woord raden</button>
-    <button class="knop" id="instelknop">⚙️ Ander woord (juf/meester)</button>
+    <button class="knop" id="instelknop">⚙️ Ander niveau of eigen woord</button>
   </div>
 </main>
 
 <!-- Instellen -->
 <div class="scherm open" id="instel">
   <div class="kaart">
-    <h2>Juf/meester: kies het woord</h2>
-    <p>Typ een eigen woord (de klas ziet het niet) of kies het uitdagende woord van vandaag.</p>
-    <input type="password" id="eigenwoord" placeholder="eigen woord" autocomplete="off">
-    <div class="knoppen">
-      <button class="knop vol" id="startstandaard">Start met het woord van vandaag</button>
-      <button class="knop" id="starteigen">Start met mijn woord</button>
-      <button class="knop" id="startwillekeurig">🎲 Willekeurig moeilijk woord</button>
+    <h2>Hoe moeilijk wordt het vandaag?</h2>
+    <p>Kies een niveau. Het spel kiest dan een woord uit de zak van Sinterklaas.</p>
+    <div class="niveaus">
+      <button class="niveau" data-niveau="1">
+        <span class="emoji">🧑‍🎄</span><b>Hulppiet</b><span class="sterren">★</span>
+        <small>Net begonnen in het pietenhuis.<br>Korte woorden.</small>
+      </button>
+      <button class="niveau" data-niveau="2">
+        <span class="emoji">🎁</span><b>Pakjespiet</b><span class="sterren">★★</span>
+        <small>Kent alle daken van het land.<br>Langere woorden.</small>
+      </button>
+      <button class="niveau" data-niveau="3">
+        <span class="emoji">🐎</span><b>Sinterklaas zelf</b><span class="sterren">★★★</span>
+        <small>Alleen voor echte puzzelbazen.<br>Hele lange woorden.</small>
+      </button>
+    </div>
+    <div class="scheiding">of de juf/meester kiest zelf</div>
+    <div class="eigenrij">
+      <input type="password" id="eigenwoord" placeholder="eigen woord (de klas ziet het niet)" autocomplete="off">
+      <button class="knop vol" id="starteigen">Start</button>
     </div>
     <p class="klein">Tip: laat de leerlingen klikken op het digibord of typ letters op het toetsenbord.</p>
   </div>
@@ -143,7 +168,7 @@
     <p id="eindtekst"></p>
     <div class="knoppen">
       <button class="knop vol" id="nieuweronde">Nog een ronde</button>
-      <button class="knop" id="eindinstel">Ander woord kiezen</button>
+      <button class="knop" id="eindinstel">Ander niveau of eigen woord</button>
     </div>
   </div>
 </div>
@@ -151,25 +176,50 @@
 <canvas id="confetti"></canvas>
 
 <script>
-const STANDAARD = { w:"PEPERNOTENBAKKER", h:"Hij maakt kleine ronde koekjes." };
-const WOORDEN = [
-  STANDAARD,
-  { w:"MARSEPEINVARKEN", h:"Een zoet dier dat je kunt opeten." },
-  { w:"VERLANGLIJSTJE", h:"Hierop schrijf je wat je graag wilt hebben." },
-  { w:"STOOMBOOTKAPITEIN", h:"Hij stuurt de boot van Spanje naar Nederland." },
-  { w:"CHOCOLADELETTER", h:"Lekker, en het is de eerste letter van je naam." },
-  { w:"SURPRISEPAPIER", h:"Hiermee maak je een cadeau mooi." },
-  { w:"SCHOORSTEENPIJP", h:"Hier glijdt Piet doorheen om de pakjes te brengen." },
-  { w:"SINTERKLAASLIEDJE", h:"Dit zing je bij je schoen." },
-  { w:"SCHOENCADEAUTJE", h:"Dit vind je 's ochtends bij de kachel." },
-  { w:"AMERIGO", h:"Hij heeft vier benen en loopt over de daken." }
-];
+const NIVEAUS = {
+  1: { naam:"Hulppiet", emoji:"🧑‍🎄", woorden:[
+    { w:"PIET", h:"Hij helpt Sinterklaas met alles." },
+    { w:"PAKJE", h:"Hier zit een cadeau in." },
+    { w:"STAF", h:"Sinterklaas houdt hem vast als hij loopt." },
+    { w:"MIJTER", h:"Dit draagt Sinterklaas op zijn hoofd." },
+    { w:"SCHOEN", h:"Die zet je bij de kachel." },
+    { w:"PAARD", h:"Hij loopt over de daken." },
+    { w:"SNOEP", h:"Lekker, maar niet te veel!" },
+    { w:"ZAK", h:"Hier passen heel veel pakjes in." },
+    { w:"BOOT", h:"Hiermee komt Sinterklaas aan." },
+    { w:"WORTEL", h:"Dit stop je in je schoen voor het paard." }
+  ]},
+  2: { naam:"Pakjespiet", emoji:"🎁", woorden:[
+    { w:"PEPERNOOT", h:"Een klein, rond koekje." },
+    { w:"STOOMBOOT", h:"Hiermee komt Sinterklaas uit Spanje." },
+    { w:"SURPRISE", h:"Een cadeau in een zelfgemaakte verpakking." },
+    { w:"MARSEPEIN", h:"Zoet snoep dat je in allerlei vormen kunt kopen." },
+    { w:"KRUIDNOOT", h:"Lijkt op een pepernoot, maar is harder." },
+    { w:"GEDICHTJE", h:"Dit schrijf je bij een surprise." },
+    { w:"SPEELGOED", h:"Hier speel je mee." },
+    { w:"SCHOORSTEEN", h:"Hier komt Piet doorheen." },
+    { w:"STROOIGOED", h:"Dit gooit Piet in het rond." },
+    { w:"CADEAUTJE", h:"Iets wat je krijgt." }
+  ]},
+  3: { naam:"Sinterklaas zelf", emoji:"🐎", woorden:[
+    { w:"PEPERNOTENBAKKER", h:"Hij maakt kleine ronde koekjes." },
+    { w:"SCHOORSTEENPIJP", h:"Hier glijdt Piet doorheen om de pakjes te brengen." },
+    { w:"MARSEPEINVARKEN", h:"Een zoet dier dat je kunt opeten." },
+    { w:"VERLANGLIJSTJE", h:"Hierop schrijf je wat je graag wilt hebben." },
+    { w:"STOOMBOOTKAPITEIN", h:"Hij stuurt de boot van Spanje naar Nederland." },
+    { w:"CHOCOLADELETTER", h:"Lekker, en het is de eerste letter van je naam." },
+    { w:"SURPRISEPAPIER", h:"Hiermee maak je een cadeau mooi." },
+    { w:"SINTERKLAASLIEDJE", h:"Dit zing je bij je schoen." },
+    { w:"SCHOENCADEAUTJE", h:"Dit vind je 's ochtends bij de kachel." },
+    { w:"AMERIGO", h:"Hij heeft vier benen en loopt over de daken." }
+  ]}
+};
 const MAX = 10;
 const KLEUREN = [["#e63946","#f2c14e"],["#1d70b8","#ffffff"],["#2e8b57","#f2c14e"],["#f2c14e","#b3121f"],
                  ["#8e44ad","#f2c14e"],["#ff7f50","#1d70b8"],["#ffffff","#b3121f"],["#00a19a","#ffffff"],
                  ["#c0392b","#2e8b57"],["#f39c12","#8e44ad"]];
 
-let woord="", hint="", geraden=new Set(), fouten=[], klaar=false, ronde=1, gebruikt=new Set();
+let niveau=null; let woord="", hint="", geraden=new Set(), fouten=[], klaar=false, ronde=1, gebruikt=new Set();
 
 const $ = id => document.getElementById(id);
 const norm = s => s.toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Z]/g,"");
@@ -234,6 +284,7 @@ function kies(l){
 function start(w,h){
   woord=norm(w); hint=h||""; geraden=new Set(); fouten=[]; klaar=false;
   gebruikt.add(woord);
+  $("niveaulabel").textContent = niveau ? NIVEAUS[niveau].emoji+" "+NIVEAUS[niveau].naam+" · " : "✏️ Eigen woord · ";
   $("hint").textContent=""; $("hintknop").style.display=hint?"":"none";
   bouwToetsen(); teken();
   document.querySelectorAll(".plek svg").forEach(s=>s.style.animation="none");
@@ -241,11 +292,18 @@ function start(w,h){
 }
 
 function willekeurig(){
-  let opties=WOORDEN.filter(o=>!gebruikt.has(o.w));
-  if(!opties.length){ gebruikt.clear(); opties=WOORDEN.filter(o=>o.w!==woord); }
+  const lijst=NIVEAUS[niveau].woorden;
+  let opties=lijst.filter(o=>!gebruikt.has(o.w));
+  if(!opties.length){ lijst.forEach(o=>gebruikt.delete(o.w)); opties=lijst.filter(o=>o.w!==woord); }
   return opties[Math.floor(Math.random()*opties.length)];
 }
 
+const WINTEKST = {
+  0: "Knap gedaan! Sinterklaas is trots op jullie. ⭐",
+  1: "Goed gedaan, hulppieten! Jullie mogen door naar Pakjespiet. 🎁",
+  2: "Wauw, echte Pakjespieten! Durven jullie het niveau van Sinterklaas zelf aan? 🐎",
+  3: "Ongelooflijk! Zelfs Sinterklaas moest even op zijn staf leunen van verbazing. 👑"
+};
 function einde(gewonnen){
   klaar=true;
   geraden=new Set(woord); teken();
@@ -254,7 +312,7 @@ function einde(gewonnen){
   $("eindwoord").textContent=woord;
   if(gewonnen){
     $("eindtitel").textContent="🎉 Geraden! 🎉";
-    $("eindtekst").innerHTML=`Gelukt met <b>${fouten.length}</b> pakje${fouten.length===1?"":"s"} op het bord.<br><b>Iedere leerling mag een tweede stempel zetten! ⭐</b>`;
+    $("eindtekst").innerHTML=`Gelukt met <b>${fouten.length}</b> pakje${fouten.length===1?"":"s"} op het bord.<br><b>${WINTEKST[niveau||0]}</b>`;
     $("nieuweronde").textContent="Nog een woord spelen";
     confetti();
   } else {
@@ -267,13 +325,12 @@ function einde(gewonnen){
 
 function sluitAlles(){ document.querySelectorAll(".scherm").forEach(s=>s.classList.remove("open")); }
 
-$("startstandaard").onclick=()=>start(STANDAARD.w,STANDAARD.h);
-$("starteigen").onclick=()=>{ const w=norm($("eigenwoord").value); if(w.length<2){ $("eigenwoord").focus(); return;} $("eigenwoord").value=""; start(w,""); };
+document.querySelectorAll(".niveau").forEach(k=>k.onclick=()=>{ niveau=+k.dataset.niveau; ronde=1; const o=willekeurig(); start(o.w,o.h); });
+$("starteigen").onclick=()=>{ const w=norm($("eigenwoord").value); if(w.length<2){ $("eigenwoord").focus(); return;} $("eigenwoord").value=""; niveau=null; ronde=1; start(w,""); };
 $("eigenwoord").addEventListener("keydown",e=>{ if(e.key==="Enter") $("starteigen").click(); });
-$("startwillekeurig").onclick=()=>{ const o=willekeurig(); start(o.w,o.h); };
 $("instelknop").onclick=()=>$("instel").classList.add("open");
 $("eindinstel").onclick=()=>{ sluitAlles(); $("instel").classList.add("open"); };
-$("nieuweronde").onclick=()=>{ ronde++; const o=willekeurig(); start(o.w,o.h); };
+$("nieuweronde").onclick=()=>{ ronde++; if(niveau){ const o=willekeurig(); start(o.w,o.h); } else { sluitAlles(); $("instel").classList.add("open"); } };
 $("hintknop").onclick=()=>{ $("hint").textContent="💡 "+hint; };
 
 $("oplossenknop").onclick=()=>{ if(klaar) return; $("raadmelding").textContent=""; $("raadinput").value=""; $("raadscherm").classList.add("open"); setTimeout(()=>$("raadinput").focus(),50); };
