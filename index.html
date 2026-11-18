@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pakjeswoord raden</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --rood:#b3121f; --donkerrood:#7a0a14; --goud:#f2c14e; --creme:#fff7e6;
+    --groen:#2e8b57; --grijs:#8a7f73;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; font-family:'Fredoka',system-ui,sans-serif;
+    background:radial-gradient(circle at 50% 0%, #c8202e 0%, var(--donkerrood) 70%);
+    color:var(--creme); display:flex; flex-direction:column; align-items:center;
+  }
+  header{ text-align:center; padding:18px 12px 4px }
+  h1{ margin:0; font-size:clamp(28px,4.5vw,56px); color:var(--goud);
+      text-shadow:0 3px 0 rgba(0,0,0,.25); letter-spacing:1px }
+  .sub{ font-size:clamp(14px,1.6vw,20px); opacity:.9; margin-top:4px }
+  main{ width:min(1200px,96vw); display:flex; flex-direction:column; align-items:center; gap:22px; padding:10px 0 30px }
+
+  /* streepjes */
+  /* vakjes schalen mee met de woordlengte, zodat het woord altijd op één regel past */
+  #woord{ --n:10; --gap:clamp(4px,0.8vw,12px);
+          --vak:min(70px, calc((min(1200px,96vw) - (var(--n) - 1) * var(--gap)) / var(--n)));
+          display:flex; flex-wrap:nowrap; justify-content:center; gap:var(--gap); margin-top:10px; width:100% }
+  .vak{ flex:0 0 var(--vak); width:var(--vak); height:calc(var(--vak) * 1.35);
+        border-bottom:max(3px, calc(var(--vak) * .08)) solid var(--creme);
+        display:flex; align-items:flex-end; justify-content:center;
+        font-size:calc(var(--vak) * .9); font-weight:700; line-height:1; padding-bottom:3px }
+  .vak.nieuw{ animation:plop .45s ease }
+  .vak.onthuld{ color:var(--goud) }
+  @keyframes plop{ 0%{transform:scale(.2)} 70%{transform:scale(1.25)} 100%{transform:scale(1)} }
+
+  /* pakjes */
+  #pakjeszone{ background:rgba(0,0,0,.18); border:3px dashed rgba(242,193,78,.6); border-radius:22px;
+               padding:14px 18px; width:100%; }
+  #pakjeskop{ display:flex; justify-content:space-between; align-items:center; font-size:clamp(16px,2vw,24px); margin-bottom:8px }
+  #teller b{ color:var(--goud); font-size:1.2em }
+  #pakjes{ display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); gap:clamp(4px,0.8vw,10px); max-width:1000px; margin:0 auto }
+  .plek{ aspect-ratio:1; min-width:0; border-radius:12px; border:2px dashed rgba(255,247,230,.25);
+         display:flex; align-items:center; justify-content:center }
+  .plek svg{ width:92%; height:92%; animation:val .6s cubic-bezier(.3,1.6,.5,1) }
+  @keyframes val{ 0%{transform:translateY(-120px) rotate(-20deg); opacity:0} 100%{transform:none; opacity:1} }
+  #fout{ min-height:1.6em; font-size:clamp(16px,2vw,24px); letter-spacing:4px; text-align:center }
+  #fout span{ text-decoration:line-through; opacity:.75; margin:0 4px }
+
+  /* toetsenbord */
+  #toetsen{ display:grid; grid-template-columns:repeat(13,1fr); gap:8px; width:100% }
+  .toets{ font:inherit; font-weight:700; font-size:clamp(18px,2.4vw,32px); padding:clamp(8px,1.2vw,16px) 0;
+          border:none; border-radius:12px; background:var(--creme); color:var(--donkerrood);
+          cursor:pointer; box-shadow:0 4px 0 rgba(0,0,0,.3); transition:transform .08s }
+  .toets:active{ transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.3) }
+  .toets.goed{ background:var(--groen); color:#fff; cursor:default }
+  .toets.mis{ background:var(--grijs); color:#ddd; cursor:default; text-decoration:line-through }
+  .toets:disabled{ box-shadow:none }
+
+  .knoppen{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center }
+  .knop{ font:inherit; font-weight:600; font-size:clamp(14px,1.6vw,20px); padding:10px 18px; border-radius:999px;
+         border:2px solid var(--goud); background:transparent; color:var(--goud); cursor:pointer }
+  .knop.vol{ background:var(--goud); color:var(--donkerrood) }
+  #hint{ font-size:clamp(16px,2vw,24px); color:var(--goud); min-height:1.4em; text-align:center }
+
+  /* overlays */
+  .scherm{ position:fixed; inset:0; background:rgba(60,4,10,.88); display:none; align-items:center; justify-content:center; z-index:10; padding:20px }
+  .scherm.open{ display:flex }
+  .kaart{ background:var(--creme); color:var(--donkerrood); border-radius:26px; padding:28px 32px; max-width:720px; width:100%;
+          text-align:center; box-shadow:0 20px 50px rgba(0,0,0,.4); border:6px solid var(--goud) }
+  .kaart h2{ margin:0 0 10px; font-size:clamp(26px,4vw,46px) }
+  .kaart p{ font-size:clamp(16px,2vw,22px); margin:8px 0 }
+  .kaart .groot{ font-size:clamp(30px,5vw,58px); font-weight:700; letter-spacing:3px; color:var(--rood); margin:12px 0 }
+  .kaart input{ font:inherit; font-size:22px; padding:10px 14px; border-radius:12px; border:2px solid var(--rood); width:100%; text-align:center; text-transform:uppercase }
+  .kaart .knop{ color:var(--rood); border-color:var(--rood); margin-top:12px }
+  .kaart .knop.vol{ background:var(--rood); color:#fff }
+  .klein{ font-size:15px !important; opacity:.8 }
+  #confetti{ position:fixed; inset:0; pointer-events:none; z-index:20 }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎁 Pakjeswoord raden 🎁</h1>
+  <div class="sub">Raad het woord vóórdat er 10 pakjes liggen! · <span id="ronde">Ronde 1</span></div>
+</header>
+
+<main>
+  <div id="woord"></div>
+  <div id="hint"></div>
+
+  <section id="pakjeszone">
+    <div id="pakjeskop">
+      <span>Pakjes op het bord</span>
+      <span id="teller"><b>0</b> / 10</span>
+    </div>
+    <div id="pakjes"></div>
+    <div id="fout"></div>
+  </section>
+
+  <div id="toetsen"></div>
+
+  <div class="knoppen">
+    <button class="knop" id="hintknop">💡 Hint</button>
+    <button class="knop" id="oplossenknop">Woord raden</button>
+    <button class="knop" id="instelknop">⚙️ Ander woord (juf/meester)</button>
+  </div>
+</main>
+
+<!-- Instellen -->
+<div class="scherm open" id="instel">
+  <div class="kaart">
+    <h2>Juf/meester: kies het woord</h2>
+    <p>Typ een eigen woord (de klas ziet het niet) of kies het uitdagende woord van vandaag.</p>
+    <input type="password" id="eigenwoord" placeholder="eigen woord" autocomplete="off">
+    <div class="knoppen">
+      <button class="knop vol" id="startstandaard">Start met het woord van vandaag</button>
+      <button class="knop" id="starteigen">Start met mijn woord</button>
+      <button class="knop" id="startwillekeurig">🎲 Willekeurig moeilijk woord</button>
+    </div>
+    <p class="klein">Tip: laat de leerlingen klikken op het digibord of typ letters op het toetsenbord.</p>
+  </div>
+</div>
+
+<!-- Geraden voor het woord -->
+<div class="scherm" id="raadscherm">
+  <div class="kaart">
+    <h2>Weet de klas het woord?</h2>
+    <input type="text" id="raadinput" placeholder="typ het woord" autocomplete="off">
+    <div class="knoppen">
+      <button class="knop vol" id="raadcheck">Controleer</button>
+      <button class="knop" id="raadsluit">Toch nog niet</button>
+    </div>
+    <p id="raadmelding"></p>
+  </div>
+</div>
+
+<!-- Einde -->
+<div class="scherm" id="einde">
+  <div class="kaart">
+    <h2 id="eindtitel"></h2>
+    <div class="groot" id="eindwoord"></div>
+    <p id="eindtekst"></p>
+    <div class="knoppen">
+      <button class="knop vol" id="nieuweronde">Nog een ronde</button>
+      <button class="knop" id="eindinstel">Ander woord kiezen</button>
+    </div>
+  </div>
+</div>
+
+<canvas id="confetti"></canvas>
+
+<script>
+const STANDAARD = { w:"PEPERNOTENBAKKER", h:"Hij maakt kleine ronde koekjes." };
+const WOORDEN = [
+  STANDAARD,
+  { w:"MARSEPEINVARKEN", h:"Een zoet dier dat je kunt opeten." },
+  { w:"VERLANGLIJSTJE", h:"Hierop schrijf je wat je graag wilt hebben." },
+  { w:"STOOMBOOTKAPITEIN", h:"Hij stuurt de boot van Spanje naar Nederland." },
+  { w:"CHOCOLADELETTER", h:"Lekker, en het is de eerste letter van je naam." },
+  { w:"SURPRISEPAPIER", h:"Hiermee maak je een cadeau mooi." },
+  { w:"SCHOORSTEENPIJP", h:"Hier glijdt Piet doorheen om de pakjes te brengen." },
+  { w:"SINTERKLAASLIEDJE", h:"Dit zing je bij je schoen." },
+  { w:"SCHOENCADEAUTJE", h:"Dit vind je 's ochtends bij de kachel." },
+  { w:"AMERIGO", h:"Hij heeft vier benen en loopt over de daken." }
+];
+const MAX = 10;
+const KLEUREN = [["#e63946","#f2c14e"],["#1d70b8","#ffffff"],["#2e8b57","#f2c14e"],["#f2c14e","#b3121f"],
+                 ["#8e44ad","#f2c14e"],["#ff7f50","#1d70b8"],["#ffffff","#b3121f"],["#00a19a","#ffffff"],
+                 ["#c0392b","#2e8b57"],["#f39c12","#8e44ad"]];
+
+let woord="", hint="", geraden=new Set(), fouten=[], klaar=false, ronde=1, gebruikt=new Set();
+
+const $ = id => document.getElementById(id);
+const norm = s => s.toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Z]/g,"");
+
+function pakjeSVG(i){
+  const [a,b]=KLEUREN[i%KLEUREN.length];
+  const draai=(i%2?6:-6);
+  return `<svg viewBox="0 0 100 100" style="transform:rotate(${draai}deg)">
+    <rect x="12" y="38" width="76" height="54" rx="6" fill="${a}" stroke="rgba(0,0,0,.25)" stroke-width="2"/>
+    <rect x="6" y="28" width="88" height="16" rx="4" fill="${a}" stroke="rgba(0,0,0,.25)" stroke-width="2"/>
+    <rect x="44" y="28" width="12" height="64" fill="${b}"/>
+    <path d="M50 28 C 30 6, 14 20, 34 28 Z" fill="${b}" stroke="rgba(0,0,0,.2)"/>
+    <path d="M50 28 C 70 6, 86 20, 66 28 Z" fill="${b}" stroke="rgba(0,0,0,.2)"/>
+    <circle cx="50" cy="28" r="5" fill="${b}"/>
+  </svg>`;
+}
+
+function bouwToetsen(){
+  const t=$("toetsen"); t.innerHTML="";
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(l=>{
+    const k=document.createElement("button");
+    k.className="toets"; k.textContent=l; k.dataset.l=l;
+    k.onclick=()=>kies(l);
+    t.appendChild(k);
+  });
+}
+
+function teken(nieuweLetter){
+  const w=$("woord"); w.innerHTML=""; w.style.setProperty("--n", Math.max(woord.length,1));
+  [...woord].forEach(l=>{
+    const v=document.createElement("div"); v.className="vak";
+    if(geraden.has(l)){ v.textContent=l; if(l===nieuweLetter) v.classList.add("nieuw"); }
+    w.appendChild(v);
+  });
+  const p=$("pakjes"); p.innerHTML="";
+  for(let i=0;i<MAX;i++){
+    const plek=document.createElement("div"); plek.className="plek";
+    if(i<fouten.length) plek.innerHTML=pakjeSVG(i);
+    p.appendChild(plek);
+  }
+  $("teller").innerHTML=`<b>${fouten.length}</b> / ${MAX}`;
+  $("fout").innerHTML=fouten.map(f=>`<span>${f}</span>`).join("");
+  $("ronde").textContent="Ronde "+ronde;
+}
+
+function kies(l){
+  if(klaar || geraden.has(l) || fouten.includes(l)) return;
+  const k=document.querySelector(`.toets[data-l="${l}"]`);
+  k.disabled=true;
+  if(woord.includes(l)){
+    geraden.add(l); k.classList.add("goed"); teken(l);
+    if([...woord].every(x=>geraden.has(x))) setTimeout(()=>einde(true),700);
+  } else {
+    fouten.push(l); k.classList.add("mis");
+    // alleen het nieuwe pakje laten vallen
+    const oud=fouten.length-1; teken();
+    document.querySelectorAll(".plek svg").forEach((s,i)=>{ if(i<oud) s.style.animation="none"; });
+    if(fouten.length>=MAX) setTimeout(()=>einde(false),900);
+  }
+}
+
+function start(w,h){
+  woord=norm(w); hint=h||""; geraden=new Set(); fouten=[]; klaar=false;
+  gebruikt.add(woord);
+  $("hint").textContent=""; $("hintknop").style.display=hint?"":"none";
+  bouwToetsen(); teken();
+  document.querySelectorAll(".plek svg").forEach(s=>s.style.animation="none");
+  sluitAlles();
+}
+
+function willekeurig(){
+  let opties=WOORDEN.filter(o=>!gebruikt.has(o.w));
+  if(!opties.length){ gebruikt.clear(); opties=WOORDEN.filter(o=>o.w!==woord); }
+  return opties[Math.floor(Math.random()*opties.length)];
+}
+
+function einde(gewonnen){
+  klaar=true;
+  geraden=new Set(woord); teken();
+  document.querySelectorAll(".vak").forEach(v=>v.classList.add("onthuld"));
+  document.querySelectorAll(".plek svg").forEach(s=>s.style.animation="none");
+  $("eindwoord").textContent=woord;
+  if(gewonnen){
+    $("eindtitel").textContent="🎉 Geraden! 🎉";
+    $("eindtekst").innerHTML=`Gelukt met <b>${fouten.length}</b> pakje${fouten.length===1?"":"s"} op het bord.<br><b>Iedere leerling mag een tweede stempel zetten! ⭐</b>`;
+    $("nieuweronde").textContent="Nog een woord spelen";
+    confetti();
+  } else {
+    $("eindtitel").textContent="🎁 10 pakjes! 🎁";
+    $("eindtekst").innerHTML="Dit was het woord. Niet erg: speel nog een ronde!";
+    $("nieuweronde").textContent="Nog een ronde";
+  }
+  setTimeout(()=>$("einde").classList.add("open"), gewonnen?600:300);
+}
+
+function sluitAlles(){ document.querySelectorAll(".scherm").forEach(s=>s.classList.remove("open")); }
+
+$("startstandaard").onclick=()=>start(STANDAARD.w,STANDAARD.h);
+$("starteigen").onclick=()=>{ const w=norm($("eigenwoord").value); if(w.length<2){ $("eigenwoord").focus(); return;} $("eigenwoord").value=""; start(w,""); };
+$("eigenwoord").addEventListener("keydown",e=>{ if(e.key==="Enter") $("starteigen").click(); });
+$("startwillekeurig").onclick=()=>{ const o=willekeurig(); start(o.w,o.h); };
+$("instelknop").onclick=()=>$("instel").classList.add("open");
+$("eindinstel").onclick=()=>{ sluitAlles(); $("instel").classList.add("open"); };
+$("nieuweronde").onclick=()=>{ ronde++; const o=willekeurig(); start(o.w,o.h); };
+$("hintknop").onclick=()=>{ $("hint").textContent="💡 "+hint; };
+
+$("oplossenknop").onclick=()=>{ if(klaar) return; $("raadmelding").textContent=""; $("raadinput").value=""; $("raadscherm").classList.add("open"); setTimeout(()=>$("raadinput").focus(),50); };
+$("raadsluit").onclick=()=>$("raadscherm").classList.remove("open");
+$("raadcheck").onclick=()=>{
+  const g=norm($("raadinput").value);
+  if(!g) return;
+  if(g===woord){ $("raadscherm").classList.remove("open"); einde(true); }
+  else {
+    $("raadmelding").textContent="Helaas, dat is het niet. Er komt een pakje bij!";
+    fouten.push("?"); teken();
+    document.querySelectorAll(".plek svg").forEach((s,i)=>{ if(i<fouten.length-1) s.style.animation="none"; });
+    setTimeout(()=>{ $("raadscherm").classList.remove("open"); if(fouten.length>=MAX) einde(false); },1200);
+  }
+};
+$("raadinput").addEventListener("keydown",e=>{ if(e.key==="Enter") $("raadcheck").click(); e.stopPropagation(); });
+
+document.addEventListener("keydown",e=>{
+  if(document.querySelector(".scherm.open")) return;
+  const l=e.key.toUpperCase();
+  if(/^[A-Z]$/.test(l)) kies(l);
+});
+
+/* confetti */
+function confetti(){
+  const c=$("confetti"), x=c.getContext("2d");
+  c.width=innerWidth; c.height=innerHeight;
+  const kl=["#f2c14e","#ffffff","#e63946","#2e8b57","#1d70b8"];
+  const deeltjes=Array.from({length:180},()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height*.5,
+    vx:(Math.random()-.5)*3,vy:2+Math.random()*4,r:4+Math.random()*6,k:kl[Math.floor(Math.random()*kl.length)],a:Math.random()*6}));
+  let t=0;
+  (function stap(){
+    x.clearRect(0,0,c.width,c.height);
+    deeltjes.forEach(d=>{ d.x+=d.vx; d.y+=d.vy; d.a+=.1; x.save(); x.translate(d.x,d.y); x.rotate(d.a);
+      x.fillStyle=d.k; x.fillRect(-d.r/2,-d.r/2,d.r,d.r*1.6); x.restore(); });
+    if(++t<260) requestAnimationFrame(stap); else x.clearRect(0,0,c.width,c.height);
+  })();
+}
+
+bouwToetsen(); woord=""; teken();
+</script>
+</body>
+</html>
